@@ -1,0 +1,38 @@
+# Конфігурація, секрети та токени
+config.json
+.env
+.env.*
+
+# Локальні кеші, моделі та віртуальне середовище
+.cache/
+.venv/
+platform-tools/
+
+# Python та тимчасові файли
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+*.bak
+*.pid
+*.flag
+
+# Приватні runtime-дані (фото оселі, щоденник, карта, логи, тестові скрипти)
+runtime/*
+!runtime/frames/
+runtime/frames/*
+!runtime/frames/.gitkeep
+!runtime/diary.example.md
+!runtime/home_map.example.md
+
+# Локальні архіви, чернетки та довідкові матеріали
+LINNIK X/
+share_for_friend/
+ai-robot-starter-kit.zip
+PLAN.md
+architecture_comparison.png
+docs/*_raw.png
+
+# Системні файли
+.DS_Store
+Thumbs.db

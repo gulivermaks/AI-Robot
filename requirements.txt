@@ -1,0 +1,32 @@
+# Основні залежності AI-Robot (Windows / Linux / macOS, Python 3.11–3.12)
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+websockets>=13.0
+aiohttp>=3.10.0
+requests>=2.32.0
+httpx>=0.27.0
+pydantic>=2.9.0
+pycryptodome>=3.20.0
+pillow>=10.0.0
+numpy>=1.26.0
+av>=13.0.0
+edge-tts>=7.0.0
+faster-whisper>=1.1.0
+silero-vad>=5.1.0
+torch>=2.4.0
+omegaconf>=2.3.0
+ctranslate2>=4.5.0
+onnxruntime>=1.19.0
+huggingface-hub>=0.25.0
+
+# -----------------------------------------------------------------------------
+# Прискорення розпізнавання мовлення (STT) на відеокарті NVIDIA (CUDA 12):
+# Якщо у вас є відеокарта NVIDIA (від 4 ГБ VRAM), додатково встановіть:
+#   pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
+# (сама бібліотека torch може залишатися CPU-версією — faster-whisper/ctranslate2
+# підхоплюють ці DLL автоматично через env_setup.py).
+#
+# Якщо відеокарти NVIDIA немає (робота лише на процесорі CPU):
+# Додаткові пакети не потрібні. У config.json вкажіть:
+#   "stt_device": "cpu", "stt_compute_type": "int8", "stt_model": "small"
+# -----------------------------------------------------------------------------

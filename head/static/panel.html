@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>AI-Robot — Пульт и Мысли</title>
+  <style>
+    :root {
+      --bg: #070b14;
+      --surface: #101829;
+      --surface2: #162138;
+      --border: rgba(255, 255, 255, 0.09);
+      --text: #eef2ff;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --thought-bg: rgba(139, 92, 246, 0.14);
+      --thought-border: rgba(167, 139, 250, 0.35);
+      --thought-text: #ddd6fe;
+      --user-bg: rgba(14, 165, 233, 0.22);
+      --user-border: rgba(56, 189, 248, 0.38);
+      --robot-bg: #17233a;
+      --ok: #22c55e;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0; height: 100%; width: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overscroll-behavior: none;
+    }
+    .layout {
+      display: flex; flex-direction: column; height: 100dvh; max-width: 780px; margin: 0 auto;
+    }
+    header {
+      padding: 10px 12px; background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0;
+    }
+    .title-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); flex-shrink: 0; }
+    .dot.ok { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+    .title { font-weight: 700; font-size: 15px; white-space: nowrap; }
+    .badges { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    .badge {
+      font-size: 11px; padding: 3px 8px; border-radius: 999px;
+      background: rgba(255,255,255,0.06); color: var(--muted); border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .badge.live { color: #86efac; border-color: rgba(34,197,94,0.35); background: rgba(34,197,94,0.12); }
+    .badge.sleep { color: #fcd34d; border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.12); }
+
+    .cam-card {
+      background: #0b111f; border-bottom: 1px solid var(--border);
+      padding: 8px 12px; flex-shrink: 0;
+    }
+    .ai-bar {
+      display: flex; gap: 6px; align-items: center; padding: 6px 12px; flex-wrap: wrap;
+      background: #0e1526; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .ai-toggle {
+      border: 1px solid var(--border); border-radius: 9px; padding: 6px 10px;
+      font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
+      background: rgba(255,255,255,0.06); color: var(--muted);
+    }
+    .ai-toggle.on {
+      background: rgba(34,197,94,0.16); border-color: rgba(34,197,94,0.45); color: #86efac;
+    }
+    .ai-select {
+      flex: 1; min-width: 120px; background: #0a101d; color: var(--text);
+      border: 1px solid var(--border); border-radius: 9px; padding: 6px 8px;
+      font-size: 12px; outline: none;
+    }
+    .ai-new, .ai-preset {
+      border: 1px solid var(--border); border-radius: 9px; padding: 6px 9px;
+      font-size: 12px; background: var(--surface2); color: var(--text); cursor: pointer; white-space: nowrap;
+    }
+    .ai-preset.active {
+      border-color: rgba(56,189,248,0.65); background: rgba(56,189,248,0.16); color: #bae6fd;
+    }
+    .ai-interval {
+      background: #0a101d; color: var(--text); border: 1px solid var(--border);
+      border-radius: 9px; padding: 5px 6px; font-size: 12px; outline: none;
+    }
+    .cam-header {
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--muted);
+    }
+    .cam-toggle {
+      background: rgba(255,255,255,0.07); color: var(--text); border: 1px solid var(--border);
+      border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer;
+    }
+    .cam-toggle.live-on {
+      background: rgba(239,68,68,0.22); border-color: rgba(239,68,68,0.65); color: #fca5a5;
+    }
+    .cam-body { margin-top: 8px; display: none; text-align: center; }
+    .cam-body.open { display: block; }
+    .cam-body img {
+      width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px;
+      border: 1px solid var(--border); background: #000;
+    }
+
+    .feed {
+      flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px;
+      scroll-behavior: smooth;
+    }
+    .msg {
+      max-width: 92%; padding: 10px 13px; border-radius: 14px; font-size: 14px; line-height: 1.45;
+      word-wrap: break-word; white-space: pre-wrap; border: 1px solid var(--border);
+    }
+    .msg-meta {
+      font-size: 11px; color: var(--muted); margin-bottom: 4px; display: flex; gap: 8px; align-items: center;
+    }
+    .msg.user_voice, .msg.user_text {
+      align-self: flex-end; background: var(--user-bg); border-color: var(--user-border);
+      border-bottom-right-radius: 4px;
+    }
+    .msg.robot_say {
+      align-self: flex-start; background: var(--robot-bg); border-bottom-left-radius: 4px;
+    }
+    .msg.thought {
+      align-self: stretch; max-width: 100%;
+      background: var(--thought-bg); border-color: var(--thought-border);
+      color: var(--thought-text); font-size: 13px;
+    }
+    .msg.action {
+      align-self: center; max-width: 96%; padding: 5px 12px; border-radius: 999px;
+      background: rgba(255,255,255,0.04); color: var(--muted); font-size: 12px;
+    }
+    .msg.frame-msg {
+      align-self: center; max-width: 82%; padding: 6px; background: #0d1526;
+      border-color: var(--border);
+    }
+    .msg.frame-msg img {
+      display: block; max-width: 100%; max-height: 125px; border-radius: 8px;
+      object-fit: contain; cursor: pointer; margin-top: 4px;
+    }
+
+    .quick-bar {
+      display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px; flex-shrink: 0;
+      background: var(--surface); border-top: 1px solid var(--border);
+    }
+    .qbtn {
+      flex: 1 1 auto; min-width: 95px; border: 1px solid var(--border); border-radius: 10px;
+      background: var(--surface2); color: var(--text); padding: 8px 10px;
+      font-size: 12.5px; font-weight: 600; cursor: pointer; text-align: center;
+    }
+    .qbtn:active { opacity: 0.75; }
+    .qbtn.stop { background: #b91c1c; border-color: #ef4444; color: #fff; }
+    .qbtn.warn { background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.45); color: #fde68a; }
+    .qbtn.free-on { background: rgba(34,197,94,0.22); border-color: rgba(34,197,94,0.65); color: #86efac; }
+
+    .composer {
+      display: flex; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+    .composer textarea {
+      flex: 1; resize: none; height: 42px; max-height: 110px;
+      background: #0a101d; color: var(--text); border: 1px solid var(--border);
+      border-radius: 12px; padding: 10px 12px; font-size: 15px; font-family: inherit; outline: none;
+    }
+    .composer textarea:focus { border-color: var(--accent); }
+    .send-btn {
+      background: linear-gradient(180deg, #38bdf8, #0284c7); color: #061320;
+      border: none; border-radius: 12px; padding: 0 18px; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .send-btn:disabled { opacity: 0.5; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div class="title-row">
+        <span id="wsDot" class="dot"></span>
+        <span class="title">Жужа · Мозг и Пульт</span>
+      </div>
+      <div class="badges">
+        <span id="headBadge" class="badge">Голова: —</span>
+        <span id="battBadge" class="badge">АКБ: —</span>
+        <span id="modeBadge" class="badge">Слух: —</span>
+      </div>
+    </header>
+
+    <div class="ai-bar">
+      <button id="agyToggleBtn" class="ai-toggle on" type="button" onclick="toggleAgy()">🤖 ИИ: ВКЛ</button>
+      <select id="modelSelect" class="ai-select" onchange="changeModel()"></select>
+      <button id="presetFast" class="ai-preset" type="button" onclick="selectPreset('gemini-4-neon-low')" title="Быстрая модель для активной езды">⚡</button>
+      <button id="presetDeep" class="ai-preset" type="button" onclick="selectPreset('gemini-4-neon-high')" title="Глубокая модель для рассуждений">🧠</button>
+      <select id="intervalSelect" class="ai-interval" onchange="changeInterval()" title="Пауза между импульсами в режиме Свобода">
+        <option value="5">5с</option>
+        <option value="15">15с</option>
+        <option value="30">30с</option>
+      </select>
+      <button class="ai-new" type="button" onclick="resetAgy()">Новый</button>
+    </div>
+
+    <div class="cam-card">
+      <div class="cam-header">
+        <span id="camInfo">Камера: ожидание кадра...</span>
+        <div style="display:flex; gap:6px;">
+          <button id="liveCamBtn" class="cam-toggle" type="button" onclick="toggleLiveCam()">📹 LIVE</button>
+          <button id="snapBtn" class="cam-toggle" type="button" onclick="captureNow()">Снять кадр</button>
+          <button id="camToggleBtn" class="cam-toggle" type="button">Скрыть фото</button>
+        </div>
+      </div>
+      <div id="camBody" class="cam-body open">
+        <img id="camImg" alt="Камера Жужи" />
+      </div>
+    </div>
+
+    <div id="feed" class="feed"></div>
+
+    <div class="quick-bar">
+      <button class="qbtn stop" type="button" onclick="sendCmd('stop')">🛑 СТОП</button>
+      <button id="autoBtn" class="qbtn" type="button" onclick="toggleAutoMode()">🧭 Свобода: ВЫКЛ</button>
+      <button id="muteBtn" class="qbtn warn" type="button" onclick="toggleSleep()">🔇 Микрофон</button>
+      <button id="voiceModeBtn" class="qbtn warn" type="button" onclick="toggleVoiceMode()">🔕 Выкл голос</button>
+      <button id="thoughtsBtn" class="qbtn free-on" type="button" onclick="toggleSpeakThoughts()">💭 Мысли: вслух</button>
+      <button id="wakeWordBtn" class="qbtn" type="button" onclick="toggleWakeWord()">🎯 По имени: ВЫКЛ</button>
+    </div>
+
+    <div class="composer">
+      <textarea id="msgInput" placeholder="Написать Жуже или дать команду..."></textarea>
+      <button id="sendBtn" class="send-btn" type="button">Отправить</button>
+    </div>
+  </div>
+
+  <script>
+    const wsDot = document.getElementById("wsDot");
+    const headBadge = document.getElementById("headBadge");
+    const battBadge = document.getElementById("battBadge");
+    const modeBadge = document.getElementById("modeBadge");
+    const camInfo = document.getElementById("camInfo");
+    const camBody = document.getElementById("camBody");
+    const camImg = document.getElementById("camImg");
+    const camToggleBtn = document.getElementById("camToggleBtn");
+    const liveCamBtn = document.getElementById("liveCamBtn");
+    const snapBtn = document.getElementById("snapBtn");
+    const feed = document.getElementById("feed");
+    const autoBtn = document.getElementById("autoBtn");
+    const thoughtsBtn = document.getElementById("thoughtsBtn");
+    const wakeWordBtn = document.getElementById("wakeWordBtn");
+    const muteBtn = document.getElementById("muteBtn");
+    const voiceModeBtn = document.getElementById("voiceModeBtn");
+    const agyToggleBtn = document.getElementById("agyToggleBtn");
+    const modelSelect = document.getElementById("modelSelect");
+    const presetFast = document.getElementById("presetFast");
+    const presetDeep = document.getElementById("presetDeep");
+    const intervalSelect = document.getElementById("intervalSelect");
+    const msgInput = document.getElementById("msgInput");
+    const sendBtn = document.getElementById("sendBtn");
+
+    let ws = null;
+    let wsReconnectTimer = null;
+    let lastWsActivity = 0;
+    let lastFrameName = "";
+    let liveCamTimer = null;
+    let liveCamBusy = false;
+    let syncInFlight = false;
+    let lastSyncTs = 0;
+    let optimisticUntil = 0;
+    let isMuted = false;
+    let speakerMuted = false;
+    let speakThoughts = true;
+    let wakeWordOnly = false;
+    let autonomousMode = false;
+    let agyEnabled = true;
+    let agyBusy = false;
+    let seenIds = new Set();
+
+    function populateModels(models, current) {
+      if (!Array.isArray(models) || models.length === 0) return;
+      modelSelect.innerHTML = "";
+      for (const m of models) {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        opt.textContent = m.label || m.id;
+        if (m.id === current) opt.selected = true;
+        modelSelect.appendChild(opt);
+      }
+      if (current) modelSelect.value = current;
+    }
+
+    camToggleBtn.addEventListener("click", () => {
+      const open = camBody.classList.toggle("open");
+      camToggleBtn.textContent = open ? "Скрыть фото" : "Показать фото";
+    });
+
+    function renderControls(currentModel = modelSelect.value) {
+      agyToggleBtn.className = "ai-toggle " + (agyEnabled ? "on" : "");
+      agyToggleBtn.textContent = agyEnabled ? (agyBusy ? "🧠 Думаю..." : "🤖 ИИ: ВКЛ") : "🤖 ИИ: ВЫКЛ";
+      presetFast.classList.toggle("active", currentModel === "gemini-4-neon-low");
+      presetDeep.classList.toggle("active", currentModel === "gemini-4-neon-high");
+
+      autoBtn.textContent = autonomousMode ? "🧭 Свобода: ВКЛ" : "🧭 Свобода: ВЫКЛ";
+      autoBtn.className = "qbtn" + (autonomousMode ? " free-on" : "");
+      thoughtsBtn.textContent = speakThoughts ? "💭 Мысли: вслух" : "💭 Мысли: текст";
+      thoughtsBtn.className = "qbtn" + (speakThoughts ? " free-on" : "");
+      wakeWordBtn.textContent = wakeWordOnly ? "🎯 По имени: ВКЛ" : "🎯 По имени: ВЫКЛ";
+      wakeWordBtn.className = "qbtn" + (wakeWordOnly ? " free-on" : "");
+      voiceModeBtn.textContent = speakerMuted ? "🔊 Вкл голос" : "🔕 Выкл голос";
+      muteBtn.textContent = isMuted ? "🎤 Вкл микрофон" : "🔇 Микрофон";
+
+      const autoTag = autonomousMode ? " · Свобода" : "";
+      const wakeTag = wakeWordOnly ? " · Жду «Жужа»" : "";
+      if (speakerMuted && isMuted) {
+        modeBadge.textContent = (agyBusy ? "Только текст · Думаю..." : "Только текст (тихо)") + autoTag;
+        modeBadge.className = "badge sleep";
+      } else if (speakerMuted) {
+        modeBadge.textContent = (agyBusy ? "Без звука · Думаю..." : "Без озвучки") + autoTag + wakeTag;
+        modeBadge.className = "badge sleep";
+      } else if (isMuted) {
+        modeBadge.textContent = (agyBusy ? "Микрофон выкл · Думаю..." : "Микрофон выкл") + autoTag;
+        modeBadge.className = "badge sleep";
+      } else if (autonomousMode) {
+        modeBadge.textContent = (agyBusy ? "🧭 Свобода · Думаю..." : "🧭 Свободная жизнь") + wakeTag;
+        modeBadge.className = "badge live";
+      } else if (agyBusy) {
+        modeBadge.textContent = "ИИ думает..." + wakeTag;
+        modeBadge.className = "badge live";
+      } else if (agyEnabled) {
+        modeBadge.textContent = wakeWordOnly ? "🎯 По имени «Жужа»" : "Живой ИИ (в эфире)";
+        modeBadge.className = "badge live";
+      } else {
+        modeBadge.textContent = "Только команды" + wakeTag;
+        modeBadge.className = "badge";
+      }
+    }
+
+    function updateHealth(h, fromCmd = false) {
+      if (!h) return;
+      headBadge.textContent = h.head_connected ? "Голова: ОК" : "Голова: нет";
+      headBadge.className = "badge " + (h.head_connected ? "live" : "");
+      if (h.battery !== undefined && h.battery !== null) {
+        battBadge.textContent = `АКБ: ${h.battery}%`;
+      }
+      agyBusy = Boolean(h.agy_busy);
+      if (!fromCmd && Date.now() < optimisticUntil) {
+        // Avoid flickering controls while user just tapped a toggle
+        return;
+      }
+      isMuted = Boolean(h.voice_muted);
+      speakerMuted = Boolean(h.speaker_muted);
+      speakThoughts = h.speak_thoughts !== false;
+      wakeWordOnly = Boolean(h.wake_word_only);
+      autonomousMode = Boolean(h.autonomous_mode);
+      agyEnabled = h.agy_enabled !== false;
+      if (h.agy_model && modelSelect.options.length > 0 && modelSelect.value !== h.agy_model) {
+        modelSelect.value = h.agy_model;
+      }
+      if (h.autonomous_interval_s) {
+        const iv = String(Math.round(Number(h.autonomous_interval_s)));
+        if ([...intervalSelect.options].some((o) => o.value === iv)) {
+          intervalSelect.value = iv;
+        }
+      }
+      renderControls(h.agy_model || modelSelect.value);
+    }
+
+    function updateFrame(url, info) {
+      if (!url) return;
+      const sep = url.includes("?") ? "&" : "?";
+      camImg.src = `${url}${sep}t=${Date.now()}`;
+      if (info) camInfo.textContent = info;
+    }
+
+    function addEvent(ev) {
+      if (!ev || (ev.id && seenIds.has(ev.id))) return;
+      if (ev.id) seenIds.add(ev.id);
+
+      if (ev.kind === "frame") {
+        updateFrame(ev.url || "/frames/latest.jpg", `Кадр: ${ev.time_str || ""} ${ev.meta || ""}`.trim());
+        if (ev.in_feed === false || !ev.url || ev.url === "/frames/latest.jpg") {
+          return;
+        }
+        const div = document.createElement("div");
+        div.className = "msg frame-msg";
+        const meta = document.createElement("div");
+        meta.className = "msg-meta";
+        meta.textContent = `📷 Кадр · ${ev.time_str || ""} ${ev.meta || ""}`.trim();
+        const img = document.createElement("img");
+        img.loading = "lazy";
+        img.src = ev.url;
+        img.alt = ev.text || "Кадр";
+        img.onclick = () => window.open(ev.url, "_blank");
+        img.onerror = () => div.remove();
+        div.appendChild(meta);
+        div.appendChild(img);
+        const nearBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 140;
+        feed.appendChild(div);
+        if (nearBottom) feed.scrollTop = feed.scrollHeight;
+        return;
+      }
+
+      const div = document.createElement("div");
+      div.className = `msg ${ev.kind || "action"}`;
+
+      if (ev.kind !== "action") {
+        const meta = document.createElement("div");
+        meta.className = "msg-meta";
+        const labels = {
+          user_voice: "🎤 Вы (голос)",
+          user_text: "📱 Вы (пульт)",
+          thought: "🧠 Мысли Жужи" + (ev.meta ? ` · ${ev.meta}` : ""),
+          robot_say: "🔊 Жужа ответила"
+        };
+        meta.textContent = `${labels[ev.kind] || ev.kind} · ${ev.time_str || ""}`;
+        div.appendChild(meta);
+      }
+
+      const body = document.createElement("div");
+      if (ev.kind === "action" && ev.time_str) {
+        body.textContent = `${ev.time_str} · ${ev.text || ""}`;
+      } else {
+        body.textContent = ev.text || "";
+      }
+      div.appendChild(body);
+
+      const nearBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 140;
+      feed.appendChild(div);
+      if (nearBottom) {
+        feed.scrollTop = feed.scrollHeight;
+      }
+    }
+
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        return await fetch(url, { ...options, signal: ctrl.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    async function sendText() {
+      const txt = msgInput.value.trim();
+      if (!txt) return;
+      msgInput.value = "";
+      sendBtn.disabled = true;
+      try {
+        await fetchWithTimeout("/panel/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: txt })
+        }, 6000);
+        syncPanel(false);
+      } catch {} finally {
+        sendBtn.disabled = false;
+        msgInput.focus();
+      }
+    }
+
+    sendBtn.addEventListener("click", sendText);
+    msgInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendText();
+      }
+    });
+
+    async function sendCmd(cmd, extra = {}) {
+      try {
+        const r = await fetchWithTimeout("/panel/command", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cmd, ...extra })
+        }, 6000);
+        if (r.ok) {
+          const data = await r.json();
+          if (data.health) updateHealth(data.health, true);
+          else syncPanel(false);
+          return data;
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    }
+
+    async function captureNow(silentLabel = false) {
+      if (liveCamBusy) return;
+      liveCamBusy = true;
+      if (!silentLabel) {
+        snapBtn.disabled = true;
+        camInfo.textContent = "Камера: снимаю кадр...";
+      }
+      try {
+        const r = await fetchWithTimeout("/panel/command", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cmd: "frame", silent: Boolean(silentLabel) })
+        }, 6500);
+        if (r.ok) {
+          const data = await r.json();
+          const nowStr = new Date().toLocaleTimeString("ru-RU", { hour12: false });
+          const fname = data.file ? String(data.file).split(/[\\/]/).pop() : "";
+          if (fname) lastFrameName = fname;
+          updateFrame(data.url || "/frames/latest.jpg", `Кадр: ${nowStr} ${data.w || ""}x${data.h || ""} · ${data.latency_ms || 0} мс`.trim());
+          if (!silentLabel) syncPanel(false);
+        } else if (!silentLabel) {
+          camInfo.textContent = "Камера: телефон-голова не отвечает";
+        }
+      } catch {
+        if (!silentLabel) camInfo.textContent = "Камера: таймаут / нет сети";
+      } finally {
+        liveCamBusy = false;
+        snapBtn.disabled = false;
+      }
+    }
+
+    function toggleLiveCam() {
+      if (liveCamTimer) {
+        clearInterval(liveCamTimer);
+        liveCamTimer = null;
+        liveCamBtn.classList.remove("live-on");
+        liveCamBtn.textContent = "📹 LIVE";
+      } else {
+        if (!camBody.classList.contains("open")) {
+          camBody.classList.add("open");
+          camToggleBtn.textContent = "Скрыть фото";
+        }
+        liveCamBtn.classList.add("live-on");
+        liveCamBtn.textContent = "🔴 LIVE";
+        captureNow(true);
+        liveCamTimer = setInterval(() => {
+          if (!document.hidden && camBody.classList.contains("open")) {
+            captureNow(true);
+          }
+        }, 2000);
+      }
+    }
+
+    function toggleSleep() {
+      const nextMuted = !isMuted;
+      isMuted = nextMuted;
+      optimisticUntil = Date.now() + 2500;
+      renderControls();
+      sendCmd(nextMuted ? "sleep" : "wake");
+    }
+
+    function toggleVoiceMode() {
+      const nextSpeakerMuted = !speakerMuted;
+      speakerMuted = nextSpeakerMuted;
+      isMuted = nextSpeakerMuted;
+      optimisticUntil = Date.now() + 2500;
+      renderControls();
+      sendCmd(nextSpeakerMuted ? "voice_off" : "voice_on");
+    }
+
+    function toggleAutoMode() {
+      const nextAuto = !autonomousMode;
+      autonomousMode = nextAuto;
+      if (nextAuto) agyEnabled = true;
+      optimisticUntil = Date.now() + 2500;
+      renderControls();
+      sendCmd(nextAuto ? "auto_on" : "auto_off");
+    }
+
+    function toggleSpeakThoughts() {
+      const nextThoughts = !speakThoughts;
+      speakThoughts = nextThoughts;
+      optimisticUntil = Date.now() + 2500;
+      renderControls();
+      sendCmd(nextThoughts ? "thoughts_on" : "thoughts_off");
+    }
+
+    function toggleWakeWord() {
+      const nextWake = !wakeWordOnly;
+      wakeWordOnly = nextWake;
+      optimisticUntil = Date.now() + 2500;
+      renderControls();
+      sendCmd(nextWake ? "wake_word_on" : "wake_word_off");
+    }
+
+    function changeInterval() {
+      const val = Number(intervalSelect.value || 5);
+      optimisticUntil = Date.now() + 2000;
+      sendCmd("set_interval", { value: val });
+    }
+
+    async function postAgyConfig(payload) {
+      try {
+        const r = await fetchWithTimeout("/agy/config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }, 6000);
+        if (r.ok) {
+          const data = await r.json();
+          if (data.health) updateHealth(data.health, true);
+          else syncPanel(false);
+        }
+      } catch {}
+    }
+
+    function toggleAgy() {
+      const nextEnabled = !agyEnabled;
+      agyEnabled = nextEnabled;
+      if (!nextEnabled) autonomousMode = false;
+      optimisticUntil = Date.now() + 2500;
+      renderControls();
+      postAgyConfig({ enabled: nextEnabled });
+    }
+
+    function selectPreset(modelId) {
+      if (modelSelect.options.length > 0) {
+        modelSelect.value = modelId;
+      }
+      optimisticUntil = Date.now() + 2500;
+      renderControls(modelId);
+      postAgyConfig({ model: modelId });
+    }
+
+    function changeModel() {
+      if (modelSelect.value) {
+        renderControls(modelSelect.value);
+        postAgyConfig({ model: modelSelect.value });
+      }
+    }
+
+    function resetAgy() {
+      postAgyConfig({ reset: true });
+    }
+
+    async function syncPanel(forceScroll = false) {
+      if (syncInFlight) return;
+      syncInFlight = true;
+      try {
+        const r = await fetchWithTimeout(`/panel/sync?t=${Date.now()}`, { cache: "no-store" }, 4000);
+        if (!r.ok) return;
+        const msg = await r.json();
+        lastSyncTs = Date.now();
+        if (modelSelect.options.length === 0) {
+          populateModels(msg.agy_models, msg.health?.agy_model);
+        }
+        updateHealth(msg.health);
+        if (msg.latest_frame && msg.latest_frame_name && msg.latest_frame_name !== lastFrameName) {
+          lastFrameName = msg.latest_frame_name;
+          updateFrame(msg.latest_frame, `Кадр: ${msg.latest_frame_name}`);
+        }
+        const prevCount = seenIds.size;
+        (msg.events || []).forEach(addEvent);
+        if (forceScroll || (prevCount === 0 && seenIds.size > 0)) {
+          feed.scrollTop = feed.scrollHeight;
+        }
+      } catch {} finally {
+        syncInFlight = false;
+      }
+    }
+
+    function connectPanelWs() {
+      if (wsReconnectTimer) {
+        clearTimeout(wsReconnectTimer);
+        wsReconnectTimer = null;
+      }
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        try { ws.close(); } catch {}
+      }
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      const sock = new WebSocket(`${proto}://${location.host}/ws/panel`);
+      ws = sock;
+      sock.onopen = () => {
+        if (ws !== sock) return;
+        lastWsActivity = Date.now();
+        wsDot.classList.add("ok");
+      };
+      sock.onmessage = (ev) => {
+        if (ws !== sock) return;
+        lastWsActivity = Date.now();
+        let msg;
+        try { msg = JSON.parse(ev.data); } catch { return; }
+        if (msg.type === "pong") return;
+        if (msg.type === "init") {
+          populateModels(msg.agy_models, msg.health?.agy_model);
+          updateHealth(msg.health);
+          if (msg.latest_frame) updateFrame(msg.latest_frame, "Последний сохранённый кадр");
+          (msg.events || []).forEach(addEvent);
+          feed.scrollTop = feed.scrollHeight;
+        } else if (msg.type === "event") {
+          addEvent(msg.event);
+        } else if (msg.type === "health") {
+          updateHealth(msg.health);
+        }
+      };
+      sock.onerror = () => {
+        try { sock.close(); } catch {}
+      };
+      sock.onclose = () => {
+        if (ws !== sock) return;
+        wsDot.classList.remove("ok");
+        wsReconnectTimer = setTimeout(connectPanelWs, 2000);
+      };
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        syncPanel(false);
+        if (!ws || ws.readyState !== WebSocket.OPEN || Date.now() - lastWsActivity > 15000) {
+          connectPanelWs();
+        }
+      }
+    });
+    window.addEventListener("focus", () => syncPanel(false));
+    window.addEventListener("online", () => { syncPanel(false); connectPanelWs(); });
+
+    syncPanel(true);
+    connectPanelWs();
+    setInterval(() => {
+      if (document.hidden) return;
+      const wsHealthy = ws && ws.readyState === WebSocket.OPEN && (Date.now() - lastWsActivity < 18000);
+      if (!wsHealthy || Date.now() - lastSyncTs >= 5000) {
+        syncPanel(false);
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        if (Date.now() - lastWsActivity > 25000) {
+          connectPanelWs();
+        } else {
+          try { ws.send('{"type":"ping"}'); } catch {}
+        }
+      }
+    }, 3000);
+  </script>
+</body>
+</html>

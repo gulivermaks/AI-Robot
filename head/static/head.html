@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Голова ИИ-Робота</title>
+  <style>
+    :root {
+      --bg: #070b14;
+      --panel: #111827;
+      --accent: #38bdf8;
+      --listen: #34d399;
+      --speak: #a78bfa;
+      --move: #fbbf24;
+      --stop: #ef4444;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      overflow: hidden; user-select: none;
+    }
+    .app {
+      display: flex; flex-direction: column; justify-content: space-between;
+      height: 100%; padding: 12px 16px 16px; gap: 10px;
+    }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--panel); border-radius: 14px; padding: 8px 14px;
+      font-size: 14px; border: 1px solid rgba(255,255,255,0.06);
+    }
+    .status-group { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%; background: var(--stop);
+      box-shadow: 0 0 8px var(--stop); transition: background .2s;
+    }
+    .dot.ok { background: var(--listen); box-shadow: 0 0 10px var(--listen); }
+    .metrics { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
+    .mic-meter {
+      width: 54px; height: 8px; background: #1e293b; border-radius: 999px; overflow: hidden;
+    }
+    .mic-fill {
+      height: 100%; width: 0%; background: var(--listen); transition: width 60ms linear;
+    }
+
+    .face-wrap {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      position: relative; min-height: 0;
+    }
+    .eyes {
+      display: flex; gap: clamp(26px, 8vw, 64px); align-items: center; justify-content: center;
+    }
+    .eye {
+      width: clamp(92px, 24vw, 150px); height: clamp(110px, 28vw, 175px);
+      background: radial-gradient(circle at 50% 42%, #7dd3fc, var(--accent) 65%, #0284c7);
+      border-radius: 46% 46% 44% 44%;
+      position: relative;
+      box-shadow: 0 0 36px rgba(56, 189, 248, 0.35);
+      transition: transform .2s ease, background .25s ease, box-shadow .25s ease, border-radius .25s ease;
+    }
+    .eye::after {
+      content: ""; position: absolute; width: 28%; height: 28%; border-radius: 50%;
+      background: rgba(255,255,255,0.88); top: 18%; left: 22%;
+      box-shadow: 18px 18px 0 -8px rgba(255,255,255,0.5);
+    }
+    .eye.blink { transform: scaleY(0.08); }
+
+    body[data-state="listening"] .eye {
+      background: radial-gradient(circle at 50% 42%, #6ee7b7, var(--listen) 68%, #059669);
+      box-shadow: 0 0 42px rgba(52, 211, 153, 0.45);
+    }
+    body[data-state="thinking"] .eye {
+      border-radius: 48%;
+      animation: lookAround 1.6s ease-in-out infinite;
+    }
+    body[data-state="speaking"] .eye {
+      background: radial-gradient(circle at 50% 42%, #ddd6fe, var(--speak) 68%, #7c3aed);
+      box-shadow: 0 0 42px rgba(167, 139, 250, 0.5);
+      animation: pulseTalk 0.45s ease-in-out infinite alternate;
+    }
+    body[data-state="moving"] .eye {
+      background: radial-gradient(circle at 50% 42%, #fde68a, var(--move) 68%, #d97706);
+      box-shadow: 0 0 42px rgba(251, 191, 36, 0.45);
+      border-radius: 40% 40% 50% 50%;
+    }
+    body[data-state="stopped"] .eye,
+    body[data-state="error"] .eye {
+      background: radial-gradient(circle at 50% 42%, #fca5a5, var(--stop) 68%, #b91c1c);
+      box-shadow: 0 0 44px rgba(239, 68, 68, 0.55);
+      border-radius: 28%;
+    }
+    @keyframes lookAround {
+      0%, 100% { transform: translateX(0); }
+      30% { transform: translateX(-10px) translateY(-4px); }
+      70% { transform: translateX(10px) translateY(-4px); }
+    }
+    @keyframes pulseTalk {
+      from { transform: scale(1); }
+      to { transform: scale(1.06, 0.94); }
+    }
+
+    .caption {
+      margin-top: 18px; max-width: 92%; text-align: center;
+      font-size: clamp(16px, 4vw, 22px); line-height: 1.35; color: #e2e8f0;
+      min-height: 52px; padding: 8px 14px; border-radius: 12px;
+      background: rgba(17, 24, 39, 0.65);
+    }
+
+    .cam-preview {
+      position: absolute; right: 4px; bottom: 4px;
+      width: 112px; height: 84px; border-radius: 10px;
+      object-fit: cover; border: 2px solid rgba(255,255,255,0.2);
+      background: #000; display: none;
+    }
+    .cam-preview.show { display: block; }
+
+    .controls {
+      display: flex; gap: 10px; align-items: stretch;
+    }
+    .btn-cam {
+      background: var(--panel); color: var(--muted); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px; padding: 0 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .btn-stop {
+      flex: 1; background: linear-gradient(180deg, #ef4444, #b91c1c);
+      color: #fff; border: none; border-radius: 16px; padding: 18px 20px;
+      font-size: 24px; font-weight: 800; letter-spacing: 1px; cursor: pointer;
+      box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+    }
+    .btn-stop:active { transform: scale(0.98); }
+
+    .overlay {
+      position: fixed; inset: 0; background: rgba(7, 11, 20, 0.94);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px; text-align: center; z-index: 50; gap: 16px;
+    }
+    .overlay.hidden { display: none; }
+    .btn-start {
+      background: linear-gradient(180deg, #38bdf8, #0284c7);
+      color: #07131f; border: none; border-radius: 20px; padding: 20px 34px;
+      font-size: 22px; font-weight: 800; cursor: pointer;
+      box-shadow: 0 10px 30px rgba(56, 189, 248, 0.45);
+    }
+    .hint { color: var(--muted); font-size: 14px; max-width: 340px; line-height: 1.45; }
+    #hiddenVideo { position: fixed; width: 4px; height: 4px; opacity: 0.01; pointer-events: none; }
+  </style>
+</head>
+<body data-state="idle">
+  <div class="app">
+    <div class="topbar">
+      <div class="status-group">
+        <span id="wsDot" class="dot"></span>
+        <span id="stateLabel">Готов к запуску</span>
+      </div>
+      <div class="metrics">
+        <span id="battLabel">АКБ: —</span>
+        <div class="mic-meter" title="Уровень микрофона">
+          <div id="micFill" class="mic-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="face-wrap">
+      <div class="eyes">
+        <div class="eye" id="eyeL"></div>
+        <div class="eye" id="eyeR"></div>
+      </div>
+      <div id="caption" class="caption">Нажмите кнопку ниже, чтобы включить камеру, микрофон и динамик.</div>
+      <video id="camPreview" class="cam-preview" autoplay playsinline muted></video>
+    </div>
+
+    <div class="controls">
+      <button id="togglePreview" class="btn-cam" type="button">Камера</button>
+      <button id="stopBtn" class="btn-stop" type="button">СТОП</button>
+    </div>
+  </div>
+
+  <div id="startOverlay" class="overlay">
+    <h2 style="margin:0;">Голова ИИ-Робота</h2>
+    <p class="hint">Одно нажатие активирует заднюю камеру, микрофон с эхоподавлением, звук и защиту экрана от сна.</p>
+    <button id="startBtn" class="btn-start" type="button">Включить голову робота</button>
+    <div id="overlayErr" class="hint" style="color:#fca5a5;"></div>
+  </div>
+
+  <video id="hiddenVideo" autoplay playsinline muted></video>
+
+  <script>
+    const STATE_LABELS = {
+      idle: "Жду",
+      listening: "Слушаю",
+      thinking: "Думаю",
+      speaking: "Говорю",
+      moving: "Еду",
+      stopped: "СТОП",
+      error: "Ошибка"
+    };
+
+    const wsDot = document.getElementById("wsDot");
+    const stateLabel = document.getElementById("stateLabel");
+    const battLabel = document.getElementById("battLabel");
+    const micFill = document.getElementById("micFill");
+    const captionEl = document.getElementById("caption");
+    const eyeL = document.getElementById("eyeL");
+    const eyeR = document.getElementById("eyeR");
+    const hiddenVideo = document.getElementById("hiddenVideo");
+    const camPreview = document.getElementById("camPreview");
+    const togglePreview = document.getElementById("togglePreview");
+    const stopBtn = document.getElementById("stopBtn");
+    const startOverlay = document.getElementById("startOverlay");
+    const startBtn = document.getElementById("startBtn");
+    const overlayErr = document.getElementById("overlayErr");
+
+    let ws = null;
+    let started = false;
+    let audioCtx = null;
+    let micStream = null;
+    let camStream = null;
+    let currentSource = null;
+    let currentFallbackAudio = null;
+    let currentAudioId = null;
+    let wakeLock = null;
+    let wsReconnectTimer = null;
+    let camRecovering = false;
+
+    function setState(state, text) {
+      const s = STATE_LABELS[state] ? state : "idle";
+      document.body.dataset.state = s;
+      stateLabel.textContent = STATE_LABELS[s];
+      if (typeof text === "string" && text.length > 0) {
+        captionEl.textContent = text;
+      }
+    }
+
+    setInterval(() => {
+      if (document.body.dataset.state === "stopped") return;
+      eyeL.classList.add("blink");
+      eyeR.classList.add("blink");
+      setTimeout(() => {
+        eyeL.classList.remove("blink");
+        eyeR.classList.remove("blink");
+      }, 130);
+    }, 4200);
+
+    togglePreview.addEventListener("click", () => {
+      camPreview.classList.toggle("show");
+    });
+
+    function sendJson(obj) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(obj));
+      }
+    }
+
+    function stopAudioPlayback() {
+      if (currentSource) {
+        try { currentSource.onended = null; currentSource.stop(); } catch {}
+        currentSource = null;
+      }
+      if (currentFallbackAudio) {
+        try { currentFallbackAudio.pause(); currentFallbackAudio.src = ""; } catch {}
+        currentFallbackAudio = null;
+      }
+      if (currentAudioId) {
+        sendJson({ type: "tts_done", id: currentAudioId, interrupted: true });
+        currentAudioId = null;
+      }
+    }
+
+    stopBtn.addEventListener("click", () => {
+      stopAudioPlayback();
+      setState("stopped", "Экстренный СТОП!");
+      sendJson({ type: "emergency_stop" });
+    });
+
+    async function requestWakeLock() {
+      try {
+        if ("wakeLock" in navigator) {
+          wakeLock = await navigator.wakeLock.request("screen");
+        }
+      } catch {}
+    }
+    async function ensureCameraAlive() {
+      if (!started || camRecovering) return;
+      const track = camStream && camStream.getVideoTracks ? camStream.getVideoTracks()[0] : null;
+      if (track && track.readyState === "live") {
+        if (hiddenVideo.paused) hiddenVideo.play().catch(() => {});
+        return;
+      }
+      camRecovering = true;
+      try {
+        if (camStream) {
+          camStream.getTracks().forEach((t) => { try { t.stop(); } catch {} });
+        }
+        camStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        hiddenVideo.srcObject = camStream;
+        camPreview.srcObject = camStream;
+        await hiddenVideo.play();
+        sendJson({ type: "ready", cam_w: hiddenVideo.videoWidth || 0, cam_h: hiddenVideo.videoHeight || 0 });
+      } catch (err) {
+        console.warn("Camera auto-recover failed:", err);
+      } finally {
+        camRecovering = false;
+      }
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (started && document.visibilityState === "visible") {
+        requestWakeLock();
+        ensureCameraAlive();
+        if (!ws || ws.readyState === WebSocket.CLOSED) connectWs();
+      }
+    });
+    window.addEventListener("online", () => {
+      if (started) {
+        ensureCameraAlive();
+        if (!ws || ws.readyState !== WebSocket.OPEN) connectWs();
+      }
+    });
+
+    function grabFrame(reqId, targetWidth, quality) {
+      if (document.hidden) {
+        sendJson({ type: "frame", id: reqId, error: "Вкладка камеры в фоне (свернута)" });
+        return;
+      }
+      if (hiddenVideo.paused) {
+        hiddenVideo.play().catch(() => {});
+      }
+      const wCam = hiddenVideo.videoWidth || 0;
+      const hCam = hiddenVideo.videoHeight || 0;
+      if (!wCam || !hCam) {
+        sendJson({ type: "frame", id: reqId, error: "Камера ещё не выдала видеопоток" });
+        return;
+      }
+      const w = Math.min(wCam, Math.max(160, targetWidth || 640));
+      const h = Math.round((hCam * w) / wCam);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(hiddenVideo, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL("image/jpeg", quality || 0.78);
+      const b64 = dataUrl.split(",")[1];
+      sendJson({ type: "frame", id: reqId, jpeg_b64: b64, w, h, cam_w: wCam, cam_h: hCam });
+    }
+
+    async function playAudio(msg) {
+      stopAudioPlayback();
+      currentAudioId = msg.id;
+      const binStr = atob(msg.audio_b64);
+      const bytes = new Uint8Array(binStr.length);
+      for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+
+      try {
+        if (audioCtx.state === "suspended") await audioCtx.resume();
+        const decoded = await audioCtx.decodeAudioData(bytes.buffer.slice(0));
+        const src = audioCtx.createBufferSource();
+        src.buffer = decoded;
+        src.connect(audioCtx.destination);
+        currentSource = src;
+        src.onended = () => {
+          if (currentAudioId === msg.id) {
+            currentSource = null;
+            currentAudioId = null;
+            sendJson({ type: "tts_done", id: msg.id, interrupted: false });
+          }
+        };
+        src.start(0);
+      } catch {
+        const blob = new Blob([bytes], { type: msg.mime || "audio/mpeg" });
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        currentFallbackAudio = audio;
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+          if (currentAudioId === msg.id) {
+            currentFallbackAudio = null;
+            currentAudioId = null;
+            sendJson({ type: "tts_done", id: msg.id, interrupted: false });
+          }
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          if (currentAudioId === msg.id) {
+            currentFallbackAudio = null;
+            currentAudioId = null;
+            sendJson({ type: "tts_done", id: msg.id, interrupted: true });
+          }
+        };
+        await audio.play();
+      }
+    }
+
+    function sendPcmChunk(int16Buf) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(int16Buf.buffer);
+      }
+    }
+
+    function updateMicMeter(int16Arr) {
+      let sum = 0;
+      for (let i = 0; i < int16Arr.length; i += 4) {
+        const v = int16Arr[i] / 32768;
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / Math.max(1, int16Arr.length / 4));
+      micFill.style.width = `${Math.min(100, Math.round(rms * 1200))}%`;
+    }
+
+    async function setupMicPipeline(stream) {
+      const source = audioCtx.createMediaStreamSource(stream);
+      const boostGain = audioCtx.createGain();
+      boostGain.gain.value = 2.5;
+      source.connect(boostGain);
+
+      const workletCode = `
+        class PcmResampler extends AudioWorkletProcessor {
+          constructor() {
+            super();
+            this.outRate = 16000;
+            this.phase = 0;
+            this.prev = 0;
+            this.chunk = new Int16Array(1024);
+            this.pos = 0;
+          }
+          process(inputs) {
+            const input = inputs[0] && inputs[0][0];
+            if (!input || input.length === 0) return true;
+            const step = sampleRate / this.outRate;
+            while (this.phase < input.length) {
+              const idx = Math.floor(this.phase);
+              const frac = this.phase - idx;
+              const s0 = idx === 0 ? this.prev : input[idx - 1];
+              const s1 = input[idx];
+              const sample = Math.max(-1, Math.min(1, s0 + (s1 - s0) * frac));
+              this.chunk[this.pos++] = sample < 0 ? sample * 32768 : sample * 32767;
+              if (this.pos === this.chunk.length) {
+                const copy = this.chunk.slice();
+                this.port.postMessage(copy, [copy.buffer]);
+                this.pos = 0;
+              }
+              this.phase += step;
+            }
+            this.phase -= input.length;
+            this.prev = input[input.length - 1];
+            return true;
+          }
+        }
+        registerProcessor("pcm-resampler", PcmResampler);
+      `;
+
+      if (audioCtx.audioWorklet) {
+        try {
+          const blobUrl = URL.createObjectURL(new Blob([workletCode], { type: "application/javascript" }));
+          await audioCtx.audioWorklet.addModule(blobUrl);
+          URL.revokeObjectURL(blobUrl);
+          const node = new AudioWorkletNode(audioCtx, "pcm-resampler");
+          node.port.onmessage = (ev) => {
+            const arr = ev.data;
+            updateMicMeter(arr);
+            sendPcmChunk(arr);
+          };
+          const silentGain = audioCtx.createGain();
+          silentGain.gain.value = 0;
+          boostGain.connect(node);
+          node.connect(silentGain);
+          silentGain.connect(audioCtx.destination);
+          return;
+        } catch (err) {
+          console.warn("AudioWorklet fallback:", err);
+        }
+      }
+
+      // ScriptProcessorNode fallback for older WebViews
+      const sp = audioCtx.createScriptProcessor(4096, 1, 1);
+      const step = audioCtx.sampleRate / 16000;
+      let phase = 0;
+      let chunk = new Int16Array(1024);
+      let pos = 0;
+      sp.onaudioprocess = (ev) => {
+        const input = ev.inputBuffer.getChannelData(0);
+        while (phase < input.length) {
+          const idx = Math.floor(phase);
+          const sample = Math.max(-1, Math.min(1, input[idx]));
+          chunk[pos++] = sample < 0 ? sample * 32768 : sample * 32767;
+          if (pos === chunk.length) {
+            updateMicMeter(chunk);
+            sendPcmChunk(chunk.slice());
+            pos = 0;
+          }
+          phase += step;
+        }
+        phase -= input.length;
+      };
+      const silentGain = audioCtx.createGain();
+      silentGain.gain.value = 0;
+      boostGain.connect(sp);
+      sp.connect(silentGain);
+      silentGain.connect(audioCtx.destination);
+    }
+
+    function connectWs() {
+      if (wsReconnectTimer) {
+        clearTimeout(wsReconnectTimer);
+        wsReconnectTimer = null;
+      }
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        try { ws.close(); } catch {}
+      }
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      const sock = new WebSocket(`${proto}://${location.host}/ws/head`);
+      ws = sock;
+      sock.binaryType = "arraybuffer";
+
+      sock.onopen = () => {
+        if (ws !== sock) return;
+        wsDot.classList.add("ok");
+        setState("listening", "Связь с мозгом робота установлена.");
+        sendJson({ type: "ready", cam_w: hiddenVideo.videoWidth || 0, cam_h: hiddenVideo.videoHeight || 0 });
+      };
+
+      sock.onmessage = async (ev) => {
+        if (ws !== sock || typeof ev.data !== "string") return;
+        let msg;
+        try { msg = JSON.parse(ev.data); } catch { return; }
+        if (msg.type === "ping") {
+          sendJson({ type: "pong" });
+        } else if (msg.type === "grab_frame") {
+          await ensureCameraAlive();
+          grabFrame(msg.id, msg.width || 640, msg.quality || 0.78);
+        } else if (msg.type === "play_audio") {
+          await playAudio(msg);
+        } else if (msg.type === "stop_audio") {
+          stopAudioPlayback();
+        } else if (msg.type === "ui") {
+          setState(msg.state || "idle", msg.caption);
+          if (msg.battery !== undefined && msg.battery !== null) {
+            battLabel.textContent = `АКБ: ${msg.battery}%`;
+          }
+        }
+      };
+
+      sock.onerror = () => {
+        try { sock.close(); } catch {}
+      };
+
+      sock.onclose = () => {
+        if (ws !== sock) return;
+        wsDot.classList.remove("ok");
+        setState("idle", "Переподключение к серверу...");
+        if (started) {
+          wsReconnectTimer = setTimeout(connectWs, 2000);
+        }
+      };
+    }
+
+    startBtn.addEventListener("click", async () => {
+      overlayErr.textContent = "";
+      try {
+        const AudioCtor = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioCtor();
+        if (audioCtx.state === "suspended") await audioCtx.resume();
+
+        camStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        hiddenVideo.srcObject = camStream;
+        camPreview.srcObject = camStream;
+        await hiddenVideo.play();
+
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1
+          },
+          video: false
+        });
+        await setupMicPipeline(micStream);
+
+        await requestWakeLock();
+        started = true;
+        startOverlay.classList.add("hidden");
+        connectWs();
+      } catch (err) {
+        overlayErr.textContent = `Не удалось запустить камеру/микрофон: ${err.message || err}`;
+      }
+    });
+  </script>
+</body>
+</html>
