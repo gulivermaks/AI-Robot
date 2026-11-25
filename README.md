@@ -165,3 +165,11 @@ AI-Robot/
 ## Ліцензія
 
 Проєкт поширюється на умовах ліцензії [MIT](LICENSE).
+
+---
+
+## Подяка та спільнота
+
+Дякую автору YouTube-каналу **[LINNIK X](https://www.youtube.com/@LinnikX)** за натхнення до створення цього проєкту.
+
+Обговорити цей та інші ШІ-проєкти можна у Telegram-групі **LINNIK X** — [@linx_chatai](https://t.me/linx_chatai).
