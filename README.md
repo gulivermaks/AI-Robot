@@ -168,8 +168,8 @@ AI-Robot/
 
 ---
 
-## Подяка та спільнота
+## Подяка та зворотний зв’язок
 
 Дякую автору YouTube-каналу **[LINNIK X](https://www.youtube.com/@LinnikX)** за натхнення до створення цього проєкту.
 
-Обговорити цей та інші ШІ-проєкти можна у Telegram-групі **LINNIK X** — [@linx_chatai](https://t.me/linx_chatai).
+Пропозиції, ідеї або зауваження щодо проєкту можна написати мені в Telegram: **[@GuliverMaks](https://t.me/GuliverMaks)**.
